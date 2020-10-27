@@ -1,0 +1,25 @@
+---
+title: "Interesting Forecasting Applications with R"
+author: "Kadir İnip - IE360 - Fall 2020"
+---
+```{r,echo=FALSE,results="hide"}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+1. [Time series forecasting using ARIMA models](https://blogs.oracle.com/datascience/introduction-to-forecasting-with-arima-in-r)
+
+    This example is important because it introduces the forecasting methodology using ARIMA models in R. As the ARIMA models can be used in a lot of business applications like understanding seasonal patterns, predidicting customers, estimating the effects of newly launched products on sales, and detecting the magnitude of these effects.
+    The main steps which should be taken for appropriate ARIMA models in the projects are examining the data(understanding patterns and irregularities), decomposing the series(understanding the seosonal effects), stationarity checking, autocorrelations, creating and fit ARIMA model then evaluating-iterating the model into problem.
+
+2. [Time series forecasting using GARCH models](https://www.statisticshowto.com/garch-model-simple-definition/) 
+    GARCH Model (Generalized Autoregressive Conditional Heteroscedastic) is provided to have various applications in finance and economics, it contributes to measuring volatility for time series. They are especially useful when the problem has volatility (fast changing variation) such as bonds, stocks, etc. The steps for using GARCH models to problems are estimating the best fit autoregressive model, calculating autocorrelations of the error term, testing for statistical significance.
+    
+3. [Time series forecasting using VAR models](https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/)
+    The Vector Autoregression model is a multivariate forecastiong algoritm that is used more than one time series infusing the others. Each variable is modeled as a function of the past values, it means that the estimators are nothing more than the lags of series (time delayed value). In order to build VAR model into problems the required steps which should be taken are analyzing the time series charateristic, testing for causation, testing for stationary, transforming the series, finding optimal order, preparing the training, evaluating the model, forecasting to future. The usage area of VAR model is macroeconomics and econometrics 's discussed topics.  
+    
+4. [Time series forecasting using VARMAX models](https://support.sas.com/rnd/app/ets/procedures/ets_varmax.html#:~:text=The%20VARMAX%20procedure%20enables%20you,average%20process%20(or%20both).)
+    The VARMAX models estimates the parameters and generates forecasts associated with vector autoregressive moving-average processes with exagenous regressors models. Economic and financial variables which are not correlated to each others directly, but correlated the other's past values. The model parameter estimation methods are least squares and maximum likelihood method.It includes seasonal deterministic terms, subset models, multiple regression with distributed lags, dead-start model that doesn't have present values of the exagenous variables, GARCH-type multivariate conditional heteroscedasity models. 
+    
+5. [Time series forecasting using Autoregression model](https://www.statisticshowto.com/autoregressive-model/)
+    The Autoregression model estimates the future behaviour of variable based on the past values. This process basically is a linear regression of the data in the current series against one or more past values in the same series. In signal processing, finance, and statistics, an Autoregressive model is a representation type of random process. 
