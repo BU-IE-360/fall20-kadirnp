@@ -1,0 +1,166 @@
+---
+title: "A Correlation Study between USD/TL, Gold Prices and Residential Property Price Index(2017=100)"
+author: "Kadir İnip"
+date: "08 12 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.duplicate.label = "allow")
+```
+
+## INDEX
+First of all, The main purpose of this study is to visualize the relationship between USD/TL, Cumhuriyet Gold Price and Residential Property Price Index between the years 2010-2020 and measure the between-relationships with the help of correlation test.I think the correlation between my data will be absolutely high, before start working, without the need for a detailed economist approach. Because of the bad course of the last 10 years, Turkey's economy has led to the depreciation of TL and inflation to remain in double digits. The depreciation of the Turkish lira has also shown its effect in the domestic market, and people who do not trust the TL have invested in a stable but safe place like gold. Naturally, in this study, I think the correlation between USD / TL parity, gold price and residential property price Index will be high.
+In the first stage of the assignment, I will try to monitor the trends of the data by visualizing the data between 2010/01-2020/12. Next, I will examine if they show similar trends at similar times by tracking the data on the same chart. Then I will examine the correlation graph I have. Finally, I will examine the Pearson correlation tests between the data with each other. I will conclude my work by making comments on my finds.
+
+At the first stages, I collected my data from [EVDS](https://evds2.tcmb.gov.tr/index.php?) which is a very useful website for collecting and analyzing data. There are 3 different categories which are exchange rates(USD/TL Buying), gold statistics (Average Cumhuriyet Gold Selling Price) and housing and construction statistics (Residential Property Price Index) in between January 2010 and December 2020. The coming data in excel format and I would like to work with .txt format data, so I moved this data to a blank text file then imported to my project.
+
+```{r, include = FALSE, echo = FALSE, warning= FALSE}
+library(lubridate)
+library(prophet)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(patchwork)
+library(ggthemes)
+library(GGally)
+library(PerformanceAnalytics)
+library(psych)
+library(knitr)
+usd <- read.delim("date-usd.txt")
+gold <- read.delim("date-gold.txt")
+hpi <- read.delim("date-hpi.txt")
+```
+
+## Visual Analyis 
+
+After importing my data into R project, the required activity is visualize the trends and showing the relationship between my data without making any statistical measurements. In the first part of the visualization includes the trends of USD/TL , Cumhuriyet Gold Prices/TL and Residential Property Price Index(2017=100) by grouping yearly level and plotting its histogram which added density. There are also data manipulations because the required visualizations can be made with the help of some arrangements.
+```{r, include = TRUE, echo = FALSE, warning= FALSE}
+usd$Date <- parse_date_time(usd$Date, "Ym")
+usd$Date <- ymd(usd$Date)
+gold$Date <- parse_date_time(gold$Date, "Ym")
+gold$Date <- ymd(gold$Date)
+hpi$date <- parse_date_time(hpi$date, "Ym")
+hpi$date <- ymd(hpi$date)
+```
+
+
+### The Yearly Grouped USD/TL Histogram in between 2010 and 2020
+
+Especially between 2010 and 2017, the density in the histogram has been collected at close values and shifts to the right regularly, indicating that the value of the data we have is increasing regularly but without going outside the series. However, the histogram chart we have in 2018 shows that the data has spread to the base and reached different values. Using our previous information, we can say that the USD / TL parity has seen different values this year, although we cannot say what value it is at the end of the year. However, we can also make this interpretation by using the data of 2019 and 2020. Because it is on the same upward trend again in 2019.
+
+```{r, include = TRUE, echo = TRUE, warning= FALSE}
+usd$year <- format.Date(usd$Date, "%Y")
+ggplot(usd, aes(USD)) + geom_histogram(bins = 30) + facet_wrap(~year, ncol = 3) + geom_density(alpha = 0.5 , fill = "white") + scale_x_continuous(lim = c(0,8))+ scale_y_continuous(lim = c(0,12)) + theme_clean() + labs(title = "USD/TL parity", y="Density" , x = "USD/TL parity") 
+```
+
+### The Yearly Grouped Cumhuriyet Gold Prices in between 2010 and 2020
+
+When we examine the Cumhuriyet Gold Prices, it is possible to make comments that the graph is similar to the USD / TL parity. When we look at the chart in detail, it is possible to see that there are values that have increased regularly between 2010 and 2017 and have not left the series. Between 2018 and 2020, the prices of Cumhuriyet Gold continued to rise and have a much higher acceleration compared to previous years. Because it is possible to see a shorter and even discrete graphic in 2020 on a wider base. This is an indicator of price jumps.
+
+```{r, include=TRUE, echo = FALSE, warning= FALSE}
+gold$year <- format.Date(gold$Date, "%Y")
+ggplot(gold, aes(Gold)) + geom_histogram(bins = 30) + facet_wrap(~year, ncol = 3) + geom_density(alpha = 0.5, fill = "white") + theme_clean() +labs(title = "Cumhuriyet Gold Prices", x = "Gold Prices", y ="Density") 
+```
+
+### The Yearly Grouped Residential Property Price Index in between 2010 and 2020
+
+When we examine the RPPI values, we can easily say that it has shown a widespread increase, especially until 2016. RPPI data, which remained at stagnant values in 2018, was spread to the base in 2019 and 2020. This is an indication that there are different data, the upward trend is higher, especially in 2019 and 2020, compared to other years.
+
+```{r, include = TRUE, echo = FALSE, warning= FALSE}
+hpi$year <- format.Date(hpi$date, "%Y", na.rm = TRUE)
+ggplot(hpi, aes(hpi)) + geom_histogram() + facet_wrap(~year, ncol = 3) + geom_density(alpha = 0.5, fill = "white") + theme_clean() + labs(title = "Residential Property Price Index", x = "RPPI", y ="Density")
+```
+
+## The Graph For All Data 
+
+Finally, the graph I want to show in the visualization section is the line plot showing the increase of all data over the years.In this line plot, I divided the value of Cumhuriyet Gold by 100 and the RPPI value by 10 in order to better read the relations between the data. Thanks to this, it was possible to observe how the upward trend occurred at similar times.
+
+```{r, include = TRUE, echo = FALSE, warning= FALSE}
+usd <- read.delim("date-usd.txt")
+gold <- read.delim("date-gold.txt")
+hpi <- read.delim("date-hpi.txt")
+
+usd$Date <- parse_date_time(usd$Date, "Ym")
+usd$Date <- ymd(usd$Date)
+gold$Date <- parse_date_time(gold$Date, "Ym")
+gold$Date <- ymd(gold$Date)
+hpi$date <- parse_date_time(hpi$date, "Ym")
+hpi$date <- ymd(hpi$date)
+
+
+#in order to visualize the dataset all in one graph we should make some arrangements
+gold[,2] <- gold[,2]/100  #it means that value*100
+hpi[,2] <- hpi[,2]/10  #it means that value*10
+
+
+usd[,3] <- "USD/TL"      #type added
+gold[,3] <- "GOLD*100TL"    #type added
+hpi[,3] <- "RPPI*10(index)"      #type added 
+
+Dates <- c(usd$Date, gold$Date, hpi$date )
+Values <- c(usd$USD , gold$Gold , hpi$hpi)
+Types <- c(usd$V3, gold$V3, hpi$V3 )
+
+usd_gold_hpi <- data.frame(Dates, Values, Types)
+ggplot(usd_gold_hpi, aes(x = Dates, y = Values, group = Types , color = Types)) +
+  geom_line(size = 1) + labs(x = "Years", y = "Values", title ="All in 1", caption = "https://evds2.tcmb.gov.tr/index.php?") +
+  theme_solarized_2() +  theme(legend.title = element_blank(), legend.direction = "horizontal", legend.position = "bottom")  
+```
+
+It is possible to say that Cumhuriyet Gold Prices have followed a similar course to the USD/TL, especially until 2020, but afterwards, a very serious upward trend started in the Cumhuriyet Gold and close increases were experienced in the RPPI and USD / TL parity in the same periods. I think we can observe the relationship between the data in the most accurate correlation graph. Therefore, in the next step, I will first examine the correlogram chart of the data and then examine their relationships with each other. In particular, I will examine the effects of a faster increase in gold prices than others in the data after 2020 on correlation.
+
+## The Correlogram
+
+Before starting the statistical analysis, I attach the last visualization chart that shows the correlations of the data we have with each other.
+
+```{r, include = TRUE, echo = FALSE, warning= FALSE}
+data <- data.frame("USD/TL" = usd$USD, "GOLD Coin/TL" = gold$Gold , "RPPI"= hpi$hpi)
+pairs.panels(data)
+```
+
+## Correlation Analyses Phase
+
+We have previously said that the economic dynamism in the world affects the gold market and we were able to show the interplay between them in the drawings we have given above. We know that gold prices in the world never sleep, 24/7 gold works in the markets continuously and naturally, the United States, which has the highest gold reserves in the world, is one of the factors that determine the gold prices. The value of states' coins is also determined by the gold stock in their vaults. This information in the light of Turkey also one of the factors that determine the price of Cumhuriyet Gold between USD / TL parity is possible to conclude that. In addition, global risks, global cash flow and global inflation also have an effect on gold prices. Based on these outputs, we should encounter a very high correlation value between the USD / TL parity and Cumhuriyet Gold.
+
+```{r, include = TRUE, echo = FALSE, warning= FALSE}
+print(cor.test(usd$USD,gold$Gold))
+```
+
+When we examine the results, we can reject the null hypothesis easily as p-value is really low. Also, the correlation coefficient is really high, we understand that the Cumhuriyet Gold Prices and USD/TL parity has the same trend when tracked. 
+
+
+The other correlation between data is USD/TL parity and Residential Property Price Index and it is expected that the correlation between is very high. However, there are a lot of variables except for imported abroad inputs but the inputs that have major costs are really USD-taken inputs. 
+
+```{r , include = TRUE, echo = FALSE, warning= FALSE}
+print(cor.test(usd$USD, hpi$hpi))
+
+```
+When we examine the results, we can reject the null hypothesis easily as p-value is really low. Also, the correlation coefficient is really high, we understand that the USD/TL parity and Residential Property Price Index has the same trend when tracked. 
+
+
+At the end, the correlation tests between Gold and RPPI will be high but not much as Gold-USD/TL or USD/TL - RPPI. As the correlation effects of these can't be explained easily. But it can be possible that the gold prices may directly effects the people's investment decisions. And also we can understand that Gold Prices affected by the USD/TL parity, then USD/TL parity has major effects onto the RPPI. 
+
+```{r , include = TRUE, echo = FALSE, warning= FALSE}
+print(cor.test(gold$Gold, hpi$hpi))
+```
+
+When we examine the results, we can reject the null hypothesis easily as p-value is really low. Also, the correlation coefficient is really high, we understand that the Cumhuriyet Gold Prices and Residential Property Price Index has the same trend when tracked. 
+
+
+## Conclusions
+
+In this project, we examine the relationship between USD/TL parity, Cumhuriyet Gold Prices and Residential Property Price Index then obtain some key finding which is The correlation between three is very high. And the major effects which created relationship may USD/TL parity. We do not know by which group these correlation relationships are directly related, but most likely the USD / TL parity prepares this effect. It is understood that the p-values are very low and correlations are really high. So we can conclude that these three measurements have the same relationship in the time. 
+
+You can click [here](https://bu-ie-360.github.io/fall20-kadirnp/files/homework_2.Rmd) to reach the RMD code.
+
+###   Sources that used
+[EVDS Web Site](https://evds2.tcmb.gov.tr/)
+  •   [R Lubridate Cheat Sheet](https://evoldyn.gitlab.io/evomics-2018/ref-sheets/R_lubridate.pdf)
+  •   [Data Visualization](http://www.sthda.com/english/)
+  •   [Other Questions](https://stackoverflow.com/)
+
+
+
+
