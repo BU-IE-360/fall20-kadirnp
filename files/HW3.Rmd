@@ -3,8 +3,8 @@ title: "Time Series Regression for Predicting Macroeconomic Indicators"
 author: "Kadir İnip"
 date: "11 01 2021"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -189,7 +189,7 @@ The fitted value for December 2020 was 455. Unfortunately, the actual result was
 [EVDS Web Site](https://evds2.tcmb.gov.tr/) for sources and [Stackoverflow](https://stackoverflow.com/) for learing.
 
 ##   Appendices
-[Here](https://bu-ie-360.github.io/fall20-kadirinip/files/HW3.Rmd) the RMD File including the code chunks can be found here.
+[Here](https://bu-ie-360.github.io/fall20-kadirnp/files/HW3.Rmd) the RMD File including the code chunks can be found here.
 
 
 
