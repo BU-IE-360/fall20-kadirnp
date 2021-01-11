@@ -1,0 +1,194 @@
+---
+title: "Time Series Regression for Predicting Macroeconomic Indicators"
+author: "Kadir İnip"
+date: "11 01 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In this project, we have been forecasted a chosen dependent variable with respect to different independent variables which can be chosen all data from EVDS. The data which I tried to understand is Purchase of Vehicle Index(2003 = 100) from EVDS. Purchase Of Vehicle Index is not a different type of data when comparing with the other price indices as the vehicle is an important item for think about consumer basket. That's why it is easy to understanding and finding dependent variables. Firstly, I choose 5 different data from EVDS to forecast the Purchase of Vehicles which are "Gold Prices", "USD/TL parity", "CBRT Total", "Probability of Purchasing Vehicles in the next month?". 
+In this project, I will manipulate the data and visualize it. After understanding its shape and also a correlation between them, I will select some of the data to forecast the Purchase of Vehicle index in December 2020. Then, using residual analysis, plot my fitted and actual value. 
+
+## Data Manipulation
+
+```{r , include= FALSE}
+library(xts)
+library(zoo)
+library(lubridate)
+library(data.table)
+library(dtplyr)
+library(dplyr)
+library(psych)
+library(fpp)
+library(ggplot2)
+library(ggthemes)
+```
+
+```{r, include = TRUE}
+rawdata <- read.delim("360hw3-data.txt")
+rawdata$Date <- parse_date_time(rawdata$Date , "Ym")
+
+table1 <- data.table(rawdata$Date, rawdata$Gold , rawdata$USD.TL , rawdata$Veh.Credit , rawdata$CBRT.Total , rawdata$PurofVehicles , rawdata$ProbofPurchasingVehicle)
+
+colnames(table1) <- c("Date" , "goldpr" , "usd" , "vehcre" , "cbrt" , "purofveh" , "probofveh")
+```
+
+In this part, after arranging the date column and creating data.table object, I have added extra trend and month variable column maybe we can use. The month column includes an important mistake which the first month indicates the "2008-07", and order is like that. 
+
+In here, I have created extra time series object as it also includes the raw data. 
+
+```{r , include=TRUE}
+ts_data <- ts(table1)
+
+```
+
+## Data Visualization
+
+First of all, the dependent variable Purchase of Vehicle Price Index is given in the table below. 
+
+```{r, include = TRUE}
+
+ggplot(table1, aes(x = Date, y = table1$purofveh)) +
+  geom_line(size = 1, color="purple") + 
+  labs(title = "Purchase of Vehicle Price Index (2003 = 100) in between 2008-07 and 2020-11", 
+                             x = "Date",
+                             y = "Price Index (2003 = 100)") + theme_calc()
+
+```
+
+The other plots will be plotted using ts_plot function. 
+
+```{r,include= TRUE}
+
+plot(ts_data[,-1], y = NULL, plot.type = c("multiple", "single"), yax.flip = TRUE, axes = TRUE, col = "purple", main = "Plot of All")
+
+```
+
+When I first read the topic, I thought the Purchase of Vehicle Index would be related to "vehicle credit" and "vehicle purchasing probability". In addition to these, I have added the "total money in circulation (CBRT Total)", "USD / TL parity" and "Gold Prices". Now, with the help of correlogram, I will select the data that has a high relation with my dependent variable.
+
+
+```{r, include = TRUE, echo=TRUE}
+corelogram<- data.frame("Gold Prices" = table1$goldpr, "USD/TL" = table1$usd , 
+                        "Vehicle Credit" = table1$vehcre , "CBRT Total" = table1$cbrt , "Purchase of Vehicle" = table1$purofveh ,
+                        "Probability of Vehicles" = table1$probofveh)
+pairs.panels(corelogram)     # then we select the Gold Prices, USD/TL and CBRT Total for model.
+```
+
+In the given correlogram I found that the correlation coefficients of Purchase of Vehicle Price Index are high with Gold Prices, USD/TL parity and CBRT Total(total money in circulation). That's why, in the linear model, I'll use these variables and try to find the best feasible fitted line and forecasting. 
+
+## Forecasting 
+
+Firstly, I will prepare the best linear model in order to find the exact type of data. 
+
+```{r, include = TRUE}
+lm1 <- lm(purofveh ~ goldpr + usd + cbrt , data = table1)
+summary(lm1)
+```
+
+```{r, include = TRUE}
+checkresiduals(lm1, lag = 12)
+```
+
+It can be understand that, the adjusted-R^2 is high but ACF has significant lag values for i = 1,2,3,4,5. So we can add extra trend variable and subtracting the Gold Prices variable as it has high t value to reject it.
+First of all, add trend and month variable to the data.table then calculate.
+
+```{r, include = TRUE, echo= FALSE}
+table1[, trend:= 1:.N]
+month <- seq(1 , 12 , by = 1)
+table1 = cbind(table1 , month) 
+colnames(table1) <- c("Date" , "goldpr" , "usd" , "vehcre" , "cbrt" , "purofveh" , "probofveh", "trend" , "month")
+
+lm2 <- lm(purofveh ~ usd + cbrt + trend , data = table1)
+summary(lm2)
+```
+
+```{r, include = TRUE}
+checkresiduals(lm2, lag = 12)
+```
+
+Unfortunately I can't eliminate the lag values. In this part, I will try to find best fitted model using the other varibles. If it can't be possible, I will take logarithm of dependent variable then try to find the fitted model again. 
+```{r, include = TRUE}
+lm3 <- lm(purofveh ~ usd + trend + as.factor(month) , data = table1)
+summary(lm3)
+
+```
+
+```{r, include = TRUE}
+checkresiduals(lm3, lag = 12)
+```
+
+```{r, include = TRUE}
+lm4 <- lm(purofveh ~ usd + cbrt + as.factor(month) , data = table1)
+summary(lm4)
+```
+
+```{r, include = TRUE}
+checkresiduals(lm4, lag = 12)
+```
+
+Both lm3 and lm4 have nonstationary variance, in order to fitting best possible way, it should be done to elimination of nonstationarity. So, I will taking logarithm of dependent data. And calculate again for lm5, which is the new version of lm2. 
+
+```{r, include = TRUE}
+table1[, purofveh := log(purofveh)]
+lm5 <- lm(purofveh ~ usd + cbrt + trend , data = table1)
+summary(lm5)
+checkresiduals(lm5, lag = 12 )
+table1[, purofveh := exp(purofveh)]
+
+```
+
+Although, the ACF is not good enough to building a forecast model but I can't improve more as the unadjusted seasonality can't be reduced even if added trend and month variable.  
+```{r, include = TRUE}
+table1[, fitted:= exp(fitted(lm5))]
+table1[, residual:= exp(residuals(lm5))]
+table1
+```
+
+## Conclusion 
+
+The Fitted and Actual values will be like that in the graph. Actually, there is an unadjusted seasonality. But, I can't eliminate this effect on my data. So, it is hard to say that, the prediction will give the best possible forecast. Indeed, is said in the first lecture, "almost all forecasts are wrong." But the least wrong one will be true enough. 
+
+```{r, include = TRUE}
+ggplot(table1, aes(x = fitted , y = purofveh)) + labs(x = "Fitted", y = "Actual")+ geom_point( color = "purple") + geom_abline(slope = 1, intercept = 0 , size = 1.2) + theme_pander()
+```
+
+```{r, include = TRUE}
+
+cols = c("fitted" = "purple", "actual" = "green")
+ggplot() +
+  geom_line(data=table1, aes(x=Date, y=table1$fitted, color="fitted"), lwd=1) +
+  geom_line(data=table1, aes(x=Date, y=purofveh, color="actual"), lwd=1) +
+  labs(title = "The Predicted vs Actual Purchase of Vehicle Index", 
+       x = "Date",
+       y = "Purchase of Vehicle Price Index (2003 = 100) ") + theme_pander()+
+  scale_color_manual(values = cols)
+
+```
+
+
+#The Prediction for December 2020
+```{r, include = TRUE}
+table1
+```
+```{r, include = TRUE}
+december2020 <- exp(4.429 + (0.1418*7.72) - (0.0000000003407*820158734) + (0.005841*150))
+december2020
+```
+
+The fitted value for December 2020 was 455. Unfortunately, the actual result was 499.
+
+
+## References
+[EVDS Web Site](https://evds2.tcmb.gov.tr/) for sources and [Stackoverflow](https://stackoverflow.com/) for learing.
+
+##   Appendices
+[Here](https://bu-ie-360.github.io/fall20-kadirinip/files/HW3.Rmd) the RMD File including the code chunks can be found here.
+
+
+
+
