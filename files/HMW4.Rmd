@@ -1,0 +1,164 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Kadir İnip
+29.01.2021
+HW4 - Forecasting with ARIMA
+
+
+## Introduction
+
+Electric consumption is a critical tool for all industries as the data come from consumption gives us predictions about the future price and future demand. In this project, I will forecast the next 14 days "Electricity Consumption" daily basis for using only the last 4 years consumption data which come from EPIAS that is the data center for public-purposes to transparency situations in electricity production market in Turkey. 
+
+In essence, there are a lot of regressors which affects the electricity consumption in Turkey, special and religious days, holidays, weather temperature, industry indexes etc. Naturally, electricity consumption differs from hour to hour, weekdays to weekdays. In this work, we observe first the long-run electricity consumption plot, then Moving Average plots. After that, I will begin the forecasting parts.
+
+## Reading and Manipulating Data 
+
+```{r, include=FALSE, warning=FALSE}
+library(data.table)
+library(lubridate)
+library(zoo)
+library(ggplot2)
+library(forecast)
+library(tseries)
+library(urca)
+library(stats)
+rawdata <- as.data.table(read.delim("projectdata.txt"))
+rawdata$Date <- as.Date(rawdata$Date, "%Y-%m-%d")
+consump <- rawdata[, list(mean_consumption = mean(Consumption, na.rm=T)),  by = list(Date)]
+consump$days <- weekdays(as.Date(consump$Date))
+```
+
+In the first part of the work, the following chart shows the electricity consumption in Turkey has been given since late January 2017. We know that the fundamental behaviour seen in the data includes weekly and monthly similarities and that the bottom values seen in the plot directly coincide with the dates of religious holidays. In addition, the main reason for the serious fluctuations in the last part is the decrease in production and the resulting consumption due to COVID.
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+
+ggplot(consump, aes(x=consump$Date, y=mean_consumption)) + geom_line(size = 0.8) + 
+  labs(x="Date",y="Daily Consumption",title="Daily Mean Electricity Consumption", 
+       subtitle = "between 2017-01-01 and 2021-01-07", caption = "datasource : EPİAŞ")
+```
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+consump[,consump_7ma := ma(consump$mean_consumption, order = 7)]
+consump[,consump_30ma := ma(consump$mean_consumption, order = 30)]
+consump[,consump_365ma := ma(consump$mean_consumption, order = 365)]
+ggplot() + 
+  geom_line(data = consump, aes(x = Date, y = consump_7ma,
+                                colour = "Weekly Moving Average", size = 1)) +  
+  geom_line(data = consump, aes(x = Date, y = consump_30ma,   
+                                colour = "Monthly Moving Average", size = 1))  + 
+  geom_line(data = consump, aes(x = Date, y = mean_consumption, colour = "Consumption"))  + 
+  labs(y="Consumption",title="Moving Averages Monthly and Weekly and Consumption")
+
+```
+
+Here, too, the graph below is the graph of the graphics with 7 and 30-day moving averages. Since visualizing the data in full is not the subject of this assignment, I will not give much detail. But I want to present you a week by drawing a monthly plot chart.
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+z <- consump[which(consump$Date > "2019-01-13" & consump$Date < "2019-02-13")]
+ggplot(z, aes(x = z$Date, y = z$mean_consumption)) + geom_line() + labs(y="Consumption",x = "Date",title="Consumption in 13 Jan to 13 Feb Month in 2019 Sample")
+
+```
+
+## Decomposition
+
+First of all, we should decompose the data in order to hold stationary in the variables.
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+
+de_consump_ts = ts(na.omit(consump$mean_consumption), frequency=7) 
+decomposed = decompose(de_consump_ts, type = "additive")
+plot(decomposed) 
+
+```
+
+This is the decomposed part of the raw data, the seasonality is seasonal effect which was up and down strictly. Random component and trend is given that. If KPSS test is well, we will use the random component and make an arima model into random component. 
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+unt_test = ur.kpss(decomposed$random) 
+summary(unt_test)
+```
+
+The random component of the decomposed data is very low, it means that we can use that, as it is stationary in the 0.01 significance level also.
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+acf(na.omit(decomposed$random))
+```
+
+ACF plot is used to understand the behaviour of lag-k in the random component. However, the auto.arima() function gives the best model.
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+forecast_model <- auto.arima(decomposed$random,seasonal = F, trace = T)
+```
+
+The AIC value is better in the ARIMA(0,0,2) model, however, we can reduce it by trying different models. To do that, firstly we will check the ACF plots then, then adding the extra new regressions into model to improve. 
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+arimamodel1 <- arima(decomposed$random, order = c(0,0,2))
+tsdisplay(residuals(arimamodel1))
+```
+
+We awared that, the lag-3 is important here, so arima model should be improved via new order=c(3,0,2). 
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+arimamodel2 <- arima(decomposed$random, order=c(3,0,2))
+tsdisplay(residuals(arimamodel2))
+```
+
+Now, the lag-6 is really high in the ACF also PACF. So we will improve the the model via order = c(6,0,2).
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+forecast_model <- auto.arima(decomposed$random, seasonal = T, trace = T)
+arimamodel3 <- arima(decomposed$random, order = c(6,0,2))
+
+```
+
+After that, we encountered that, there are no any lag values significant. Then, we can go into forecasting code. 
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+tsdisplay(residuals(arimamodel3))
+```
+
+This is the summary of model.
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+summary(arimamodel3)
+```
+
+
+In the section given below, we have forecast the next 14 days using the seasonal and trend variables of the last 14 days. Then we completed the report by calculating the error coefficients and WMAPE value.
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+
+trend= as.numeric(rep(tail(decomposed$trend[!is.na(decomposed$trend)],1), 14)) 
+season= as.numeric(tail(decomposed$seasonal, 14))
+prediction_model3 = predict(arimamodel3, n.ahead = 14)$pred + trend + season
+
+actuals <- c(34781.56125,31841.90125,36431.46292,36897.99375,37409.86958,
+             38056.0525,38170.38167,35667.34583,32557.95792,38447.88708,
+             39723.73333,39960.9225,39791.06708,38902.97375)
+dates <- c("2021-01-09","2021-01-10","2021-01-11","2021-01-12","2021-01-13",
+           "2021-01-14","2021-01-15","2021-01-16","2021-01-17","2021-01-18",
+           "2021-01-19","2021-01-20","2021-01-21","2021-01-22","2021-01-23")
+forecasts <- c(34561.42, 32693.09, 29403.98, 33324.29, 34316.86, 34711.27, 34912.08, 34654.69, 33070.91, 29894.57, 33706.48, 34504.60, 34710.06, 34803.66)
+
+n=length(actuals)
+error = actuals-forecasts
+mean=mean(actuals)
+sd=sd(actuals)
+bias = sum(error)/sum(actuals)
+mape = sum(abs(error/actuals))/n
+mad = sum(abs(error))/n
+wmape = mad/mean
+errorpost <- data.frame(n,mean,sd,bias,mape,mad,wmape)
+errorpost
+```
+
+## Conclusion
+
+In this report, I tried to forecast the electricity consumption based on the last 4 year data in Turkey. Respectively, I read the data, manipulated and visualized, then decomposed because of the stationary assumptions. As, if the data has not stationary mean and variance, the forecast will be biased, and the model will not fit. Then, I calculate the errors by using WMAPE formula. The model which used here is ARIMA(6,0,2) which means that calculate to lag(6) and 2-order MA. 
+
+
+# RMD file
+
+[Here](https://bu-ie-360.github.io/fall20-kadirnp/files/HMW4.Rmd) the RMD File including the code chunks can be found.
