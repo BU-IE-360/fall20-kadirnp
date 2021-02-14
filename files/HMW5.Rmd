@@ -1,0 +1,166 @@
+---
+title: "HMW5"
+author: "Kadir İnip"
+date: "14 02 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction
+
+In this project, the focused subject is building a linear regression model with two different way, manually building and following given steps and using step() function. The manual builded model and step function gives us the same linear regression model which can be understand that the taken steps are valid and exact. 
+In the report, I will firstly introduce by creating correlation and scatter plot, then by using stepwise regression steps building a regression model, then by using step() function  building the same model. At the end of the report, preparing a hypothesis testing for GPA variable and test it. 
+Finally, making our comments and completed the report. 
+
+
+Libraries and required importing and manipulations:
+
+```{r echo=FALSE, message=FALSE, warning=TRUE, include = TRUE}
+library(data.table)
+library(corrplot)
+library(gclus)
+library(fpp)
+library(ggplot2)
+library(lubridate)
+
+# manipulation
+data <- as.data.table(read.delim("sales.txt"))
+colnames(data) <- c("Sales", "APT","AGE", "ANX", "EXP" , "GPA")
+```
+
+
+### Correlogram and Scatter Plot by Colored Correlation Values
+
+First of all, the corelogram includes correlation values between each variable in the dataset. In the corelogram plot, the descending ordered correlation values between Sales volume are AGE, APT, GPA, EXP, ANX respectively. 
+
+```{r, echo=TRUE}
+correlation <- cor(data)
+corrplot(correlation, method = "number", type = "upper", bg= "turquoise", tl.srt = 30)
+```
+
+The scatter plot will be:
+
+```{r echo=TRUE}
+data.r <- abs(cor(data)) 
+data.col <- dmat.color(data.r)
+data.o <- order.single(data.r)
+cpairs(data, data.o, panel.colors=data.col, gap=.5, lower.panel = NULL, main="Scatter Plot Colored by Correlation")
+```
+
+In the scatter plot, it can be understand easily that AGE and Sales values are correlated as the points on the plot are close to y=x line. The variables between highest R^2 correlation values shows an increasing trend. I think that, the AGE, APT and GPA variables can have impacts on Sales.
+
+### Stepwise Regression 
+
+The highest correlation value between variables can be found: 
+
+```{r}
+sort(data.r, decreasing=T)[7] 
+```
+
+Data.r keeps the absolute of the correlation between variables and the first 6 index include the correlation for every variable between itself. So, the highest correlation is 0.7915 which is between Sales and AGE. So, keeping AGE for first regressors. 
+
+```{r echo=TRUE}
+currentmodel <- lm(formula = Sales ~ AGE, data= data)
+summary(currentmodel)
+```
+
+For building the initial model, we will add new variables which are on the correlation table, this is the second step. Then at the end of the step we will use F-test statistics and select the best model with respect to p-value, to do that we will use anova() function. 
+
+```{r}
+newmodel <- lm(formula = Sales ~ AGE + APT, data = data)    # the best F-value is AGE + APT
+anova(currentmodel, newmodel)
+newmodel <- lm(formula = Sales ~ AGE + ANX, data = data)
+anova(currentmodel, newmodel)
+newmodel <- lm(formula = Sales ~ AGE + EXP, data = data)
+anova(currentmodel, newmodel)
+newmodel <- lm(formula = Sales ~ AGE + GPA, data = data)      
+anova(currentmodel, newmodel)
+```
+
+After trying different models, it is observed that the next variable for building an appropriate model is APT which is significant and the has the lowest p-value. We can update our model by adding APT variable. 
+
+Then in the step 3, we will remove the initial first variable (AGE) and try to find whether model improved or not: 
+```{r echo=TRUE}
+currentmodel <- lm(formula = Sales ~ AGE + APT, data = data)
+newmodel <- lm(formula  = Sales ~ APT, data = data)
+anova(currentmodel, newmodel)
+```
+
+
+The p-value is really close to zero (7.939*e-11) which means that AGE is significant for our model, so it shouldn't remove our linear regression model. 
+
+Then we'll move on step2&3 until there are no improvement yet. The next step is whether new variable is significant or not, is it added or not?
+
+```{r}
+newmodel <- lm(formula = Sales~ AGE + APT + ANX, data = data)
+anova(currentmodel, newmodel)
+newmodel <- lm(formula = Sales~ AGE + APT + EXP, data = data)
+anova(currentmodel, newmodel)
+newmodel <- lm(formula = Sales~ AGE + APT + GPA, data = data)    
+anova(currentmodel, newmodel)
+```
+
+The lowest GPA is found when GPA added however, its significance level is not enough for adding our linear model. So, the current model was founded with the help of AGE and APT variables. 
+
+```{r, echo=FALSE, include=TRUE}
+summary(currentmodel)
+```
+
+
+### Step() Function 
+
+In this section, we will build an appropriate model by using step() function and step function make some iterations and minimize the total AIC. Direction is important for creating step() function, as if there are more crowded variables in the dataset, "both" types of direction takes long time on the other hand, there are exactly 30 row and 6 columns, so using "both" direction and giving the route to the algorithm is the best way.  
+
+```{r}
+step(lm(formula = Sales ~ 1, data = data), scope =~ APT + AGE + ANX + EXP + GPA, direction = "both", trace = 1)
+```
+
+The final regression model is not different our stepwise regression case which means that the first method is true enough to find appropriate model as expected. In the step() function, the algorithm works to minimize the total AIC values. It can say the model which Sales~AGE+APT is our final model. 
+
+#### Comparison Between Step() function and Stepwise Regression 
+
+It can be say that, both methods build the same model which is Sales ~ AGE + APT. And their coefficients are not different because step() function works minimizing the AIC error values and build lm model for each iteration, if the next iteration hasn't a lowest AIC value, the step() function stops and gives the final model. Like in the stepwise regression steps that we taken via using p-values and significance values. 
+
+### Final Model 
+
+The final model is Sales ~ AGE + APT, and the summary of the model is:
+
+```{r, echo=FALSE, include=TRUE}
+summary(currentmodel)
+```
+
+-The estimate of the Yo is -83.8357 and its significant level is under 0.0001
+
+-The estimate of the coefficient of AGE value is 5.7969 and its significance level is under 0.0001
+
+-The estimate of the coefficient of APT value is 0.2015 and its significance level is under 0.0001
+
+-The residual standard error of the model is 3.788 on 27 degrees of freedom as n=30 and k=2, the degrees of freedom is n-k-1 so 27. F-statistic will be 111 for 2 and 27 degrees of freedom.
+
+-The residual variance of the model will be square of the residual standard error divided by n-2, so it will be (3.788)^2/28 = 0.51246.
+
+### GPA Effect on the Model 
+
+The question says that 
+* HO = High school GPA's coefficient on the model is equal to zero
+* H1 = High school GPA coefficient on the model isn't equal zero. 
+* significance level alpha = 0.1 
+
+```{r}
+newmodel <- lm(formula = Sales ~AGE + APT + GPA, data = data)
+summary(newmodel)
+```
+
+* The t-value of the new added variable is -0.443 which is very close to 0 and p-value of the new added variable GPA is 0.661 
+* 0.661 > 0.10 significance level, so we can fail to reject Ho. 
+
+### Conclusion 
+
+Finally, in this project, I built the same linear model by using two different method: manual and step() function. Both gives the same model and coefficents. Then, using hypothesis testing, I tried to understand whether the effect of GPA on sales is significant or not. The results show that, we fail to reject the null hypothesis which says that the GPA variable has an effect on the model. 
+
+
+RMD file is [here](https://bu-ie-360.github.io/fall20-kadirnp/files/HMW5.Rmd).
+
